@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">通知拦截器</string>
+    <string name="accessibility_service_description">通知拦截器可以阻止用户通过通知栏下拉菜单停止锁机软件。启用后，当检测到用户尝试停止受保护的应用时，会自动返回主屏幕并锁屏。</string>
+</resources>

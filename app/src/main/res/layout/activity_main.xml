@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/background"
+    android:fitsSystemWindows="true">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="通知拦截器"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="40dp"
+        android:paddingBottom="12dp" />
+
+    <TextView
+        android:id="@+id/tvSwitchStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="通知栏屏蔽: 关闭 ✗"
+        android:textSize="15sp"
+        android:textColor="@color/text_primary"
+        android:paddingHorizontal="20dp"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/btnToggleSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="开启屏蔽"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:id="@+id/tvAccessibilityStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="无障碍服务: 未启用 ✗"
+        android:textSize="13sp"
+        android:textColor="@color/text_secondary"
+        android:paddingHorizontal="20dp"
+        android:layout_marginBottom="12dp" />
+
+    <Button
+        android:id="@+id/btnEnableAccessibility"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="启用无障碍服务"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginBottom="16dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="20dp"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="生效时段"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary" />
+
+        <Button
+            android:id="@+id/btnAddTimeRange"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="+ 添加"
+            android:textSize="13sp"
+            android:minWidth="0dp"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="4dp" />
+
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="未设置时段时全天生效"
+        android:textSize="12sp"
+        android:textColor="@color/text_secondary"
+        android:paddingHorizontal="20dp"
+        android:layout_marginBottom="8dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvTimeRanges"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="20dp" />
+
+</LinearLayout>
