@@ -69,19 +69,23 @@ public class NotificationBlockerService extends AccessibilityService {
         if (pkg == null) return;
 
         String pkgName = pkg.toString();
-        if (!"com.android.systemui".equals(pkgName)
-            && !"miui.systemui.plugin".equals(pkgName)) return;
-
         int type = event.getEventType();
         if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
             && type != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
             return;
         }
 
-        if (isPanelExpanded()) {
-            dismissNow();
-            retryDismiss();
-        } else if (isRunningServicesDialog()) {
+        boolean isSystemUi = "com.android.systemui".equals(pkgName)
+            || "miui.systemui.plugin".equals(pkgName);
+
+        if (isSystemUi) {
+            if (isPanelExpanded()) {
+                dismissNow();
+                retryDismiss();
+            }
+        }
+
+        if (isRunningServicesDialog()) {
             dismissRunningServicesDialog();
         }
     }
@@ -164,15 +168,16 @@ public class NotificationBlockerService extends AccessibilityService {
         if (root == null) return false;
 
         try {
-            List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText("知道了");
-            if (nodes != null && !nodes.isEmpty()) {
-                for (AccessibilityNodeInfo node : nodes) {
-                    if ("android.widget.Button".equals(node.getClassName())
-                        || "android.widget.TextView".equals(node.getClassName())) {
-                        return true;
-                    }
-                }
+            List<AccessibilityNodeInfo> titleNodes = root.findAccessibilityNodeInfosByText("正在运行的服务");
+            if (titleNodes != null && !titleNodes.isEmpty()) {
+                return true;
             }
+
+            List<AccessibilityNodeInfo> btnNodes = root.findAccessibilityNodeInfosByText("知道了");
+            if (btnNodes != null && !btnNodes.isEmpty()) {
+                return true;
+            }
+
             return false;
         } catch (Exception e) {
             return false;
@@ -186,18 +191,17 @@ public class NotificationBlockerService extends AccessibilityService {
         if (root == null) return;
 
         try {
-            List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText("知道了");
-            if (nodes != null && !nodes.isEmpty()) {
-                for (AccessibilityNodeInfo node : nodes) {
-                    if (node.isClickable()) {
-                        node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                        return;
-                    }
+            List<AccessibilityNodeInfo> btnNodes = root.findAccessibilityNodeInfosByText("知道了");
+            if (btnNodes != null && !btnNodes.isEmpty()) {
+                for (AccessibilityNodeInfo node : btnNodes) {
+                    node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                 }
-                AccessibilityNodeInfo first = nodes.get(0);
-                first.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                return;
             }
+
+            performGlobalAction(GLOBAL_ACTION_BACK);
         } catch (Exception e) {
+            performGlobalAction(GLOBAL_ACTION_BACK);
         } finally {
             root.recycle();
         }
