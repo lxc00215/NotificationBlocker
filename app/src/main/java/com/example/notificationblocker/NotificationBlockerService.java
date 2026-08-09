@@ -81,6 +81,8 @@ public class NotificationBlockerService extends AccessibilityService {
         if (isPanelExpanded()) {
             dismissNow();
             retryDismiss();
+        } else if (isRunningServicesDialog()) {
+            dismissRunningServicesDialog();
         }
     }
 
@@ -93,6 +95,7 @@ public class NotificationBlockerService extends AccessibilityService {
             performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE);
         }
         performGlobalAction(GLOBAL_ACTION_BACK);
+        performGlobalAction(GLOBAL_ACTION_HOME);
         dispatchBackGesture();
     }
 
@@ -130,6 +133,7 @@ public class NotificationBlockerService extends AccessibilityService {
                         performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE);
                     }
                     performGlobalAction(GLOBAL_ACTION_BACK);
+                    performGlobalAction(GLOBAL_ACTION_HOME);
                     dispatchBackGesture();
                 }
             }, delay);
@@ -150,6 +154,50 @@ public class NotificationBlockerService extends AccessibilityService {
             return false;
         } catch (Exception e) {
             return false;
+        } finally {
+            root.recycle();
+        }
+    }
+
+    private boolean isRunningServicesDialog() {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return false;
+
+        try {
+            List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText("知道了");
+            if (nodes != null && !nodes.isEmpty()) {
+                for (AccessibilityNodeInfo node : nodes) {
+                    if ("android.widget.Button".equals(node.getClassName())
+                        || "android.widget.TextView".equals(node.getClassName())) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        } finally {
+            root.recycle();
+        }
+    }
+
+    private void dismissRunningServicesDialog() {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return;
+
+        try {
+            List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText("知道了");
+            if (nodes != null && !nodes.isEmpty()) {
+                for (AccessibilityNodeInfo node : nodes) {
+                    if (node.isClickable()) {
+                        node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                        return;
+                    }
+                }
+                AccessibilityNodeInfo first = nodes.get(0);
+                first.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+            }
+        } catch (Exception e) {
         } finally {
             root.recycle();
         }
