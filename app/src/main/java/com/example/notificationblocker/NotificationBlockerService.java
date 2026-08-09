@@ -74,8 +74,10 @@ public class NotificationBlockerService extends AccessibilityService {
             return;
         }
 
-        performDismiss();
-        aggressiveRetry();
+        if (isPanelExpanded()) {
+            performDismiss();
+            aggressiveRetry();
+        }
     }
 
     private void aggressiveRetry() {
