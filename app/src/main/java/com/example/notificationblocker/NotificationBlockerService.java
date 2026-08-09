@@ -1,9 +1,14 @@
 package com.example.notificationblocker;
 
 import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.GestureDescription;
+import android.graphics.Path;
+import android.graphics.Point;
+import android.graphics.Rect;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Display;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
@@ -64,9 +69,8 @@ public class NotificationBlockerService extends AccessibilityService {
         if (pkg == null) return;
 
         String pkgName = pkg.toString();
-        boolean isSystemUi = "com.android.systemui".equals(pkgName);
-        boolean isMiuiPlugin = "miui.systemui.plugin".equals(pkgName);
-        if (!isSystemUi && !isMiuiPlugin) return;
+        if (!"com.android.systemui".equals(pkgName)
+            && !"miui.systemui.plugin".equals(pkgName)) return;
 
         int type = event.getEventType();
         if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
@@ -75,17 +79,58 @@ public class NotificationBlockerService extends AccessibilityService {
         }
 
         if (isPanelExpanded()) {
-            performDismiss();
-            aggressiveRetry();
+            dismissNow();
+            retryDismiss();
         }
     }
 
-    private void aggressiveRetry() {
-        for (int i = 1; i <= 30; i++) {
-            final int delay = i * 60;
+    private void dismissNow() {
+        long now = System.currentTimeMillis();
+        if (now - lastActionTime < 50) return;
+        lastActionTime = now;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE);
+        }
+        performGlobalAction(GLOBAL_ACTION_BACK);
+        dispatchBackGesture();
+    }
+
+    private void dispatchBackGesture() {
+        try {
+            Display display = getDisplay();
+            if (display == null) return;
+            Point size = new Point();
+            display.getRealSize(size);
+
+            Path path = new Path();
+            path.moveTo(5, size.y / 2f);
+            path.lineTo(size.x / 2f, size.y / 2f);
+
+            GestureDescription.Builder builder = new GestureDescription.Builder();
+            GestureDescription.StrokeDescription stroke =
+                new GestureDescription.StrokeDescription(path, 0, 150);
+            builder.addStroke(stroke);
+
+            dispatchGesture(builder.build(), null, null);
+        } catch (Exception e) {
+        }
+    }
+
+    private void retryDismiss() {
+        for (int i = 1; i <= 40; i++) {
+            final int delay = i * 50;
             handler.postDelayed(() -> {
                 if (shouldBlock && isPanelExpanded()) {
-                    performDismiss();
+                    long now = System.currentTimeMillis();
+                    if (now - lastActionTime < 50) return;
+                    lastActionTime = now;
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE);
+                    }
+                    performGlobalAction(GLOBAL_ACTION_BACK);
+                    dispatchBackGesture();
                 }
             }, delay);
         }
@@ -108,17 +153,6 @@ public class NotificationBlockerService extends AccessibilityService {
         } finally {
             root.recycle();
         }
-    }
-
-    private void performDismiss() {
-        long now = System.currentTimeMillis();
-        if (now - lastActionTime < 50) return;
-        lastActionTime = now;
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE);
-        }
-        performGlobalAction(GLOBAL_ACTION_BACK);
     }
 
     private boolean computeShouldBlock() {
