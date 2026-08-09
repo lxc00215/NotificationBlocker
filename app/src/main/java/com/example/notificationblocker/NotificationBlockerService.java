@@ -87,6 +87,7 @@ public class NotificationBlockerService extends AccessibilityService {
 
         if (isRunningServicesDialog()) {
             dismissRunningServicesDialog();
+            retryDismissDialog();
         }
     }
 
@@ -204,6 +205,17 @@ public class NotificationBlockerService extends AccessibilityService {
             performGlobalAction(GLOBAL_ACTION_BACK);
         } finally {
             root.recycle();
+        }
+    }
+
+    private void retryDismissDialog() {
+        for (int i = 1; i <= 20; i++) {
+            final int delay = i * 80;
+            handler.postDelayed(() -> {
+                if (shouldBlock && isRunningServicesDialog()) {
+                    dismissRunningServicesDialog();
+                }
+            }, delay);
         }
     }
 
