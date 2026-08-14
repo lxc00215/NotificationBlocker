@@ -1,41 +1,24 @@
 package com.example.notificationblocker;
 
 import android.accessibilityservice.AccessibilityService;
-import android.accessibilityservice.GestureDescription;
-import android.graphics.Path;
-import android.graphics.Point;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.view.Display;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 public class NotificationBlockerService extends AccessibilityService {
 
     private static NotificationBlockerService instance;
     public static volatile boolean shouldBlock = false;
-    private long lastActionTime = 0;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private static final String PREFS_NAME = "NotificationBlockerPrefs";
     private static final String KEY_BLOCK_ENABLED = "block_enabled";
     private static final String KEY_TIME_RANGES = "time_ranges";
-
-    private static final List<String> PANEL_IDS = Arrays.asList(
-        "com.android.systemui:id/notification_panel",
-        "com.android.systemui:id/notifications_stack_scroller",
-        "com.android.systemui:id/expandableNotificationShade",
-        "com.android.systemui:id/control_center_container",
-        "miui.systemui.plugin:id/main_panel",
-        "miui.systemui.plugin:id/main_panel_container"
-    );
 
     private final Runnable timeChecker = new Runnable() {
         @Override
@@ -64,18 +47,39 @@ public class NotificationBlockerService extends AccessibilityService {
         if (event == null) return;
         if (!shouldBlock) return;
 
-        CharSequence pkg = event.getPackageName();
-        if (pkg == null) return;
-
-        String pkgName = pkg.toString();
-        boolean isSystemUi = "com.android.systemui".equals(pkgName)
-            || "miui.systemui.plugin".equals(pkgName);
-        if (!isSystemUi) return;
-
         int type = event.getEventType();
         if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
 
-        performGlobalAction(GLOBAL_ACTION_BACK);
+        dismissDialog();
+    }
+
+    private void dismissDialog() {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return;
+
+        try {
+            AccessibilityNodeInfo btn = findButtonText(root, "知道了");
+            if (btn != null) {
+                btn.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                return;
+            }
+            performGlobalAction(GLOBAL_ACTION_BACK);
+        } catch (Exception e) {
+            performGlobalAction(GLOBAL_ACTION_BACK);
+        } finally {
+            root.recycle();
+        }
+    }
+
+    private AccessibilityNodeInfo findButtonText(AccessibilityNodeInfo root, String text) {
+        try {
+            java.util.List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(text);
+            if (nodes != null && !nodes.isEmpty()) {
+                return nodes.get(0);
+            }
+        } catch (Exception e) {
+        }
+        return null;
     }
 
     private boolean computeShouldBlock() {
