@@ -1,17 +1,11 @@
 package com.example.notificationblocker;
 
 import android.accessibilityservice.AccessibilityService;
-import android.accessibilityservice.GestureDescription;
-import android.graphics.Path;
-import android.graphics.Point;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.view.Display;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashSet;
 import java.util.List;
@@ -21,21 +15,11 @@ public class NotificationBlockerService extends AccessibilityService {
 
     private static NotificationBlockerService instance;
     public static volatile boolean shouldBlock = false;
-    private long lastActionTime = 0;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private static final String PREFS_NAME = "NotificationBlockerPrefs";
     private static final String KEY_BLOCK_ENABLED = "block_enabled";
     private static final String KEY_TIME_RANGES = "time_ranges";
-
-    private static final List<String> PANEL_IDS = Arrays.asList(
-        "com.android.systemui:id/notification_panel",
-        "com.android.systemui:id/notifications_stack_scroller",
-        "com.android.systemui:id/expandableNotificationShade",
-        "com.android.systemui:id/control_center_container",
-        "miui.systemui.plugin:id/main_panel",
-        "miui.systemui.plugin:id/main_panel_container"
-    );
 
     private final Runnable timeChecker = new Runnable() {
         @Override
@@ -64,36 +48,36 @@ public class NotificationBlockerService extends AccessibilityService {
         if (event == null) return;
         if (!shouldBlock) return;
 
-        CharSequence pkg = event.getPackageName();
-        if (pkg == null) return;
-
-        String pkgName = pkg.toString();
-        boolean isSystemUi = "com.android.systemui".equals(pkgName)
-            || "miui.systemui.plugin".equals(pkgName);
-        if (!isSystemUi) return;
-
         int type = event.getEventType();
-        if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-            && type != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            return;
-        }
+        // 只在新窗口出现时检测，避免频繁事件重复触发
+        if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
 
-        if (type == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            if (!isPanelExpanded()) return;
+        if (isTargetDialog()) {
+            dismissDialog();
+            retryDismissDialog();
         }
-
-        performDismiss();
-        retryDismiss();
     }
 
-    private boolean isPanelExpanded() {
+    /**
+     * 检测"正在运行的服务"弹窗：
+     * 1. 标题含"正在运行的服务"
+     * 2. 或列表里显示了"番茄锁"且带"知道了"按钮
+     */
+    private boolean isTargetDialog() {
         AccessibilityNodeInfo root = getRootInActiveWindow();
         if (root == null) return false;
 
         try {
-            for (String id : PANEL_IDS) {
-                List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByViewId(id);
-                if (nodes != null && !nodes.isEmpty()) return true;
+            List<AccessibilityNodeInfo> titles =
+                root.findAccessibilityNodeInfosByText("正在运行的服务");
+            if (titles != null && !titles.isEmpty()) return true;
+
+            List<AccessibilityNodeInfo> app =
+                root.findAccessibilityNodeInfosByText("番茄锁");
+            if (app != null && !app.isEmpty()) {
+                List<AccessibilityNodeInfo> btn =
+                    root.findAccessibilityNodeInfosByText("知道了");
+                if (btn != null && !btn.isEmpty()) return true;
             }
             return false;
         } catch (Exception e) {
@@ -103,47 +87,39 @@ public class NotificationBlockerService extends AccessibilityService {
         }
     }
 
-    private void performDismiss() {
-        long now = System.currentTimeMillis();
-        if (now - lastActionTime < 50) return;
-        lastActionTime = now;
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE);
+    private void dismissDialog() {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        try {
+            if (root != null) {
+                List<AccessibilityNodeInfo> btn =
+                    root.findAccessibilityNodeInfosByText("知道了");
+                if (btn != null && !btn.isEmpty()) {
+                    for (AccessibilityNodeInfo node : btn) {
+                        if (node.isClickable()) {
+                            node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                            return;
+                        }
+                    }
+                    btn.get(0).performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    return;
+                }
+            }
+            performGlobalAction(GLOBAL_ACTION_BACK);
+        } catch (Exception e) {
+            performGlobalAction(GLOBAL_ACTION_BACK);
+        } finally {
+            if (root != null) root.recycle();
         }
-        performGlobalAction(GLOBAL_ACTION_BACK);
-        dispatchBackGesture();
     }
 
-    private void retryDismiss() {
+    private void retryDismissDialog() {
         for (int i = 1; i <= 20; i++) {
-            final int delay = i * 60;
+            final int delay = i * 80;
             handler.postDelayed(() -> {
-                if (shouldBlock) {
-                    performDismiss();
+                if (shouldBlock && isTargetDialog()) {
+                    dismissDialog();
                 }
             }, delay);
-        }
-    }
-
-    private void dispatchBackGesture() {
-        try {
-            Display display = getDisplay();
-            if (display == null) return;
-            Point size = new Point();
-            display.getRealSize(size);
-
-            Path path = new Path();
-            path.moveTo(5, size.y / 2f);
-            path.lineTo(size.x / 2f, size.y / 2f);
-
-            GestureDescription.Builder builder = new GestureDescription.Builder();
-            GestureDescription.StrokeDescription stroke =
-                new GestureDescription.StrokeDescription(path, 0, 150);
-            builder.addStroke(stroke);
-
-            dispatchGesture(builder.build(), null, null);
-        } catch (Exception e) {
         }
     }
 
