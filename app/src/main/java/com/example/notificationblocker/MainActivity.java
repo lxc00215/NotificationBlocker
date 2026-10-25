@@ -78,11 +78,21 @@ public class MainActivity extends AppCompatActivity {
         updateUI();
     }
 
+    private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+
     @Override
     protected void onResume() {
         super.onResume();
         updateBlockState();
         updateUI();
+        handler.postDelayed(this::updateUI, 1000);
+        handler.postDelayed(this::updateUI, 3000);
+    }
+
+    @Override
+    protected void onDestroy() {
+        handler.removeCallbacksAndMessages(null);
+        super.onDestroy();
     }
 
     private boolean isBlockEnabled() {
@@ -112,16 +122,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateUI() {
-        boolean accEnabled = isAccessibilityServiceEnabled();
+        boolean accEnabled = NotificationBlockerService.isRunning() || isAccessibilityServiceEnabled();
         boolean isBlockOn = isBlockEnabled();
 
         tvAccessibilityStatus.setText("无障碍服务: " + (accEnabled ? "已启用 ✓" : "未启用 ✗"));
         tvAccessibilityStatus.setTextColor(accEnabled ? 0xFF4CAF50 : 0xFFF44336);
 
-        tvSwitchStatus.setText("通知栏屏蔽: " + (isBlockOn ? "开启 ✓" : "关闭 ✗"));
+        tvSwitchStatus.setText("弹窗拦截: " + (isBlockOn ? "开启 ✓" : "关闭 ✗"));
         tvSwitchStatus.setTextColor(isBlockOn ? 0xFF4CAF50 : 0xFFF44336);
 
-        btnToggleSwitch.setText(isBlockOn ? "关闭屏蔽" : "开启屏蔽");
+        btnToggleSwitch.setText(isBlockOn ? "关闭拦截" : "开启拦截");
     }
 
     private boolean isAccessibilityServiceEnabled() {

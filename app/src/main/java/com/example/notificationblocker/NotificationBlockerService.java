@@ -73,9 +73,78 @@ public class NotificationBlockerService extends AccessibilityService {
         if (!isSystemUi) return;
 
         int type = event.getEventType();
-        if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
+        if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+            && type != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            return;
+        }
 
+        if (type == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            if (!isPanelExpanded()) return;
+        }
+
+        performDismiss();
+        retryDismiss();
+    }
+
+    private boolean isPanelExpanded() {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return false;
+
+        try {
+            for (String id : PANEL_IDS) {
+                List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByViewId(id);
+                if (nodes != null && !nodes.isEmpty()) return true;
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        } finally {
+            root.recycle();
+        }
+    }
+
+    private void performDismiss() {
+        long now = System.currentTimeMillis();
+        if (now - lastActionTime < 50) return;
+        lastActionTime = now;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE);
+        }
         performGlobalAction(GLOBAL_ACTION_BACK);
+        dispatchBackGesture();
+    }
+
+    private void retryDismiss() {
+        for (int i = 1; i <= 20; i++) {
+            final int delay = i * 60;
+            handler.postDelayed(() -> {
+                if (shouldBlock) {
+                    performDismiss();
+                }
+            }, delay);
+        }
+    }
+
+    private void dispatchBackGesture() {
+        try {
+            Display display = getDisplay();
+            if (display == null) return;
+            Point size = new Point();
+            display.getRealSize(size);
+
+            Path path = new Path();
+            path.moveTo(5, size.y / 2f);
+            path.lineTo(size.x / 2f, size.y / 2f);
+
+            GestureDescription.Builder builder = new GestureDescription.Builder();
+            GestureDescription.StrokeDescription stroke =
+                new GestureDescription.StrokeDescription(path, 0, 150);
+            builder.addStroke(stroke);
+
+            dispatchGesture(builder.build(), null, null);
+        } catch (Exception e) {
+        }
     }
 
     private boolean computeShouldBlock() {
@@ -102,6 +171,10 @@ public class NotificationBlockerService extends AccessibilityService {
         }
     }
 
+    public static boolean isRunning() {
+        return instance != null;
+    }
+
     @Override
     public void onInterrupt() {}
 
@@ -110,9 +183,5 @@ public class NotificationBlockerService extends AccessibilityService {
         instance = null;
         handler.removeCallbacksAndMessages(null);
         super.onDestroy();
-    }
-
-    public static boolean isRunning() {
-        return instance != null;
     }
 }
