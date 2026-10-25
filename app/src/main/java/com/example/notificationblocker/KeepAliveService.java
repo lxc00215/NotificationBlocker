@@ -21,7 +21,11 @@ public class KeepAliveService extends Service {
     public void onCreate() {
         super.onCreate();
         createChannel();
-        startForeground(NOTIFICATION_ID, buildNotification());
+        try {
+            startForeground(NOTIFICATION_ID, buildNotification());
+        } catch (Exception e) {
+            android.util.Log.e("NBService", "startForeground failed: " + e);
+        }
     }
 
     private void createChannel() {
@@ -64,7 +68,9 @@ public class KeepAliveService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        updateBlockState(getSharedPreferences("config", MODE_PRIVATE));
+        // 不要在这里覆盖 shouldBlock：NotificationBlockerService 自己会按
+        // NotificationBlockerPrefs 计算开关和时间段（这里读的 "config" 是空的，
+        // 会把开关错误地重置成 false）
         return START_STICKY;
     }
 

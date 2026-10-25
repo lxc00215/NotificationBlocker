@@ -35,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        android.util.Log.e("NBService", "MainActivity onCreate pid=" + android.os.Process.myPid());
         setContentView(R.layout.activity_main);
 
         tvAccessibilityStatus = findViewById(R.id.tvAccessibilityStatus);
